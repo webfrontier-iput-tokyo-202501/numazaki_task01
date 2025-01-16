@@ -1,18 +1,25 @@
-import { useCallback, useState, useRef, useEffect} from "react";
+import { useCallback, useState} from "react";
 import { useDropzone } from "react-dropzone";
 import Image from "next/image";
 
 export default function UploadPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
-
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const onDrop = useCallback((acceptedFiles: File[]) => {
+    setErrorMessage(null);
     if (acceptedFiles.length > 0) {
       setSelectedImage(acceptedFiles[0]);
     }
+
+  }, []);
+
+  const onDropRejected = useCallback(() => {
+    setErrorMessage("選択できるのは画像ファイルのみです");
   }, []);
 
   const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       "image/*": [],
     },
@@ -33,7 +40,7 @@ export default function UploadPage() {
     <div className="flex flex-col items-center justify-center min-h-screen p-8 gap-8 bg-gray-100">
       <div
         {...getRootProps()}
-        className={`lg:w-[55%] h-60 flex items-center justify-center border-2 border-dashed rounded-lg transition ${
+        className={`lg:w-[80%] h-80 flex items-center justify-center border-2 border-dashed rounded-lg transition ${
           isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-400 bg-white"
         }`}
       >
@@ -48,25 +55,29 @@ export default function UploadPage() {
           />
         ) : (
           <p className="text-gray-600 text-center text-2xl">
-            Drag and drop an image here<br></br> or click to select one.
+            画像をドラッグアンドドロップ
           </p>
         )}
       </div>
       
+      {errorMessage && (
+        <p className="text-red-500 text-lg">{errorMessage}</p> 
+      )}
+
       <div className="flex gap-60">
         <button
           className="py-5 px-9 rounded bg-blue-500 text-white hover:bg-blue-600 text-xl"
           disabled={!selectedImage}
           onClick={() => setSelectedImage(null)}
         >
-          delete image
+          画像を削除
         </button>
         
         <button
           className="py-5 px-9 rounded bg-blue-500 text-white hover:bg-blue-600 text-xl"
           onClick={handleButtonClick}
         >
-          {selectedImage ? "mask" : "select image"}
+          {selectedImage ? "マスクする" : "画像を選択"}
         </button>
       </div>
       
