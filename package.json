@@ -9,7 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@types/node-fetch": "^2.6.12",
+    "form-data": "^4.0.1",
+    "formidable": "^3.5.2",
     "next": "15.1.4",
+    "node-fetch": "^3.3.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-dropzone": "^14.3.5"

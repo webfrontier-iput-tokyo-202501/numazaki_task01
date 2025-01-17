@@ -5,6 +5,8 @@ import Image from "next/image";
 export default function UploadPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [faceData, setFaceData] = useState<any>(null);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setErrorMessage(null);
     if (acceptedFiles.length > 0) {
@@ -28,9 +30,32 @@ export default function UploadPage() {
   });
 
 
-  const handleButtonClick = () => {
+  const handleButtonClick = async () => {
     if (selectedImage) {
-      alert("マスクをつける処理を実行しました！");
+      const formData = new FormData();
+      formData.append('file', selectedImage);
+
+      try {
+        const response = await fetch('/api/detect', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('顔検出に失敗しました。');
+        }
+
+        const data = await response.json();
+        setFaceData(data);
+        alert('マスクをつける処理を実行しました！');
+      } catch (error) {
+  
+        if (error instanceof Error) {
+          console.log(error.message);
+        } else {
+          console.log(String(error));
+        }
+      }
     } else {
       open();
     }
