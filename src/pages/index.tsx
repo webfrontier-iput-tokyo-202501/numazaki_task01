@@ -7,10 +7,17 @@ const App: React.FC = () => {
   const [responseMessage, setResponseMessage] = useState<string | null>(null); // レスポンス結果
   const [isMasked, setIsMasked] = useState<boolean>(false); // マスクが完了したかどうか
   const [errorMessage, setErrorMessage] = useState<string | null>(null); // エラーメッセージ
+  const [fileError, setFileError] = useState<string | null>(null); // ファイルエラーメッセージ
+  const [isSending, setIsSending] = useState<boolean>(false); // 送信中の状態
   const canvasRef = useRef<HTMLCanvasElement | null>(null); // Canvas参照
 
   // ドラッグ＆ドロップ時の処理
-  const onDrop = (acceptedFiles: File[]) => {
+  const onDrop = (acceptedFiles: File[], fileRejections: any[]) => {
+    if (fileRejections.length > 0) {
+      setFileError("画像ファイル以外は選択できません");
+      return;
+    }
+
     if (acceptedFiles.length > 0) {
       const uploadedFile = acceptedFiles[0];
       setFile(uploadedFile);
@@ -18,6 +25,7 @@ const App: React.FC = () => {
       setPreview(imageUrl);
       setIsMasked(false); // マスクが完了していない状態にリセット
       setErrorMessage(null); // エラーメッセージをリセット
+      setFileError(null); // ファイルエラーメッセージをリセット
     }
   };
 
@@ -80,6 +88,8 @@ const App: React.FC = () => {
   const sendImage = async () => {
     if (!file) return;
 
+    setIsSending(true); // 送信中の状態を設定
+
     try {
       const formData = new FormData();
       formData.append("file", file);
@@ -98,20 +108,22 @@ const App: React.FC = () => {
           setResponseMessage("顔検出が完了しました。");
           setIsMasked(true); // マスクが完了した状態に設定
         } else {
-          setErrorMessage("顔が検出できませんでした。"); // エラーメッセージを設定
+          setErrorMessage("顔が認識できませんでした"); // エラーメッセージを設定
         }
       } else {
         const errorResponse = await response.json();
         if (errorResponse.code === 28) {
-          setErrorMessage("顔が検出できませんでした。"); // エラーメッセージを設定
+          setErrorMessage("顔が認識できませんでした"); // エラーメッセージを設定
         } else {
           console.error("アップロードエラー:", errorResponse.error || response.statusText);
-          setResponseMessage(errorResponse.error || "エラーが発生しました。");
+          setErrorMessage("画像の送信に失敗しました。"); // エラーメッセージを設定
         }
       }
     } catch (error) {
       console.error("エラーが発生しました:", error);
-      setResponseMessage("ネットワークエラーが発生しました。");
+      setErrorMessage("画像の送信に失敗しました。"); // エラーメッセージを設定
+    } finally {
+      setIsSending(false); // 送信中の状態を解除
     }
   };
 
@@ -122,6 +134,7 @@ const App: React.FC = () => {
     setResponseMessage(null);
     setIsMasked(false); // マスクが完了していない状態にリセット
     setErrorMessage(null); // エラーメッセージをリセット
+    setFileError(null); // ファイルエラーメッセージをリセット
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext("2d");
@@ -146,10 +159,24 @@ const App: React.FC = () => {
         <canvas ref={canvasRef} className="absolute inset-0" />
       </div>
 
+      {/* ファイルエラーメッセージ */}
+      {fileError && (
+        <div className="mt-4 text-red-500">
+          {fileError}
+        </div>
+      )}
+
       {/* エラーメッセージ */}
       {errorMessage && (
         <div className="mt-4 text-red-500">
           {errorMessage}
+        </div>
+      )}
+
+      {/* 送信中メッセージ */}
+      {isSending && (
+        <div className="mt-4 text-blue-500">
+          送信中...
         </div>
       )}
 
@@ -182,9 +209,14 @@ const App: React.FC = () => {
             {preview ? (
               <button
                 onClick={sendImage}
-                className="px-9 py-5 rounded bg-blue-500 text-white hover:bg-blue-600 focus:outline-none"
+                disabled={isSending} // 送信中はボタンを無効化
+                className={`px-9 py-5 rounded ${
+                  isSending
+                    ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                    : "bg-blue-500 text-white hover:bg-blue-600"
+                } focus:outline-none`}
               >
-                写真を送信
+                {isSending ? "送信中..." : "写真を送信"}
               </button>
             ) : (
               <button
