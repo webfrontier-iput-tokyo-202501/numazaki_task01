@@ -33,8 +33,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const file = Array.isArray(files.file) ? files.file[0] : files.file;
       const filePath = file.filepath;
 
-      console.log("Uploaded file:", file);
-      console.log("File path:", filePath);
+      // 必要な情報だけをログ出力
+      console.log("Uploaded file:", {
+        originalFilename: file.originalFilename,
+        filepath: filePath,
+        size: file.size,
+      });
 
       if (!filePath) {
         res.status(400).json({ error: "File path is undefined" });
@@ -42,7 +46,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       // 画像を読み込む
-      const image = await loadImage(filePath);
+      let image;
+      try {
+        image = await loadImage(filePath);
+      } catch (error) {
+        console.error("画像の読み込みエラー:", error);
+        res.status(400).json({ error: "画像の読み込みに失敗しました。" });
+        return;
+      }
 
       // APIリクエストを送信して座標を取得
       const formData = new FormData();
@@ -70,11 +81,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(200).json({ message: "No faces detected", previewUrl: null });
       }
 
+      // 顔の座標をログ出力
+      console.log("Detected faces:", detectedFaces.map(face => face.box));
+
       // 画像とマスクを重ねる
       const canvas = createCanvas(image.width, image.height);
       const ctx = canvas.getContext("2d");
       ctx.drawImage(image, 0, 0);
 
+      // マスク画像を読み込む
       const maskImage = await loadImage(path.join(process.cwd(), "public", "ぬま.jpg"));
       detectedFaces.forEach(({ box: { x_min, y_min, x_max, y_max } }: any) => {
         const maskWidth = x_max - x_min;
