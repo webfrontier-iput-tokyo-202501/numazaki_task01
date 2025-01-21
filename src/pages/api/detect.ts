@@ -3,6 +3,8 @@ import formidable, { File } from "formidable";
 import fs from "fs";
 import fetch from "node-fetch";
 import FormData from "form-data";
+import { createCanvas, loadImage } from "canvas";
+import path from "path";
 
 export const config = {
   api: {
@@ -39,14 +41,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return;
       }
 
-      // CompreFace に送信
+      // 画像を読み込む
+      const image = await loadImage(filePath);
+
+      // APIリクエストを送信して座標を取得
       const formData = new FormData();
       formData.append("file", fs.createReadStream(filePath), file.originalFilename || "upload.jpg");
 
       const apiResponse = await fetch("http://compreface/api/v1/detection/detect", {
         method: "POST",
         headers: {
-          "x-api-key": process.env.COMPREFACE_API_KEY || "",
+          "x-api-key": process.env.faceplace_API_KEY || "",
         },
         body: formData as any,
       });
@@ -59,10 +64,47 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
 
       const responseData = await apiResponse.json();
-      res.status(200).json({ message: "送信成功", response: responseData });
+      const detectedFaces = responseData?.result || [];
+
+      if (!detectedFaces.length) {
+        return res.status(200).json({ message: "No faces detected", previewUrl: null });
+      }
+
+      // 画像とマスクを重ねる
+      const canvas = createCanvas(image.width, image.height);
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0);
+
+      const maskImage = await loadImage(path.join(process.cwd(), "public", "ぬま.jpg"));
+      detectedFaces.forEach(({ box: { x_min, y_min, x_max, y_max } }: any) => {
+        const maskWidth = x_max - x_min;
+        const maskHeight = y_max - y_min;
+        ctx.drawImage(maskImage, x_min, y_min, maskWidth, maskHeight);
+      });
+
+      // 保存先パスとURL
+      const outputDir = path.join(process.cwd(), "public", "output");
+      const outputFilePath = path.join(outputDir, "masked_image.png");
+      const outputUrl = `/output/masked_image.png`;
+
+      // 出力ディレクトリが存在しない場合に作成
+      if (!fs.existsSync(outputDir)) {
+        fs.mkdirSync(outputDir, { recursive: true });
+      }
+
+      // 画像を保存
+      const out = fs.createWriteStream(outputFilePath);
+      const stream = canvas.createPNGStream();
+      stream.pipe(out);
+      out.on("finish", () => {
+        console.log("Masked image saved.");
+      });
+
+      // クライアントにプレビュー用URLを返す
+      return res.status(200).json({ message: "Image processed successfully", previewUrl: outputUrl });
     } catch (error) {
-      console.error("サーバーエラー:", error);
-      res.status(500).json({ error: "サーバーエラーが発生しました" });
+      console.error("Processing error:", error);
+      res.status(500).json({ error: (error as Error).message });
     }
   } else {
     res.status(405).json({ error: "Method not allowed" });
