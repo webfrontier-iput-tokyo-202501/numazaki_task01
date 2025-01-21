@@ -90,7 +90,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ctx.drawImage(image, 0, 0);
 
       // マスク画像を読み込む
-      const maskImage = await loadImage(path.join(process.cwd(), "public", "ぬま.jpg"));
+      let maskImage;
+      try {
+        maskImage = await loadImage(path.join(process.cwd(), "public", "wanted.png"));
+      } catch (error) {
+        console.error("マスク画像の読み込みエラー:", error);
+        res.status(400).json({ error: "マスク画像の読み込みに失敗しました。" });
+        return;
+      }
+
       detectedFaces.forEach(({ box: { x_min, y_min, x_max, y_max } }: any) => {
         const maskWidth = x_max - x_min;
         const maskHeight = y_max - y_min;
