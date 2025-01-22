@@ -48,6 +48,13 @@ const App: React.FC = () => {
       img.src = preview;
 
       img.onload = () => {
+        // 画像の幅と高さが正しいか確認
+        if (img.width === 0 || img.height === 0) {
+          console.error("画像の読み込みに失敗しました。");
+          setErrorMessage("画像の読み込みに失敗しました。");
+          return;
+        }
+
         const canvasWidth = canvas.parentElement?.clientWidth || 800;
         const canvasHeight = canvas.parentElement?.clientHeight || 250;
         canvas.width = canvasWidth;
@@ -87,18 +94,18 @@ const App: React.FC = () => {
   // 画像を送信して顔部分に画像を貼り付け
   const sendImage = async () => {
     if (!file) return;
-
+  
     setIsSending(true); // 送信中の状態を設定
-
+  
     try {
       const formData = new FormData();
       formData.append("file", file);
-
+  
       const response = await fetch("/api/detect", {
         method: "POST",
         body: formData,
       });
-
+  
       if (response.ok) {
         const jsonResponse = await response.json();
         if (jsonResponse.previewUrl) {
@@ -108,12 +115,12 @@ const App: React.FC = () => {
           setResponseMessage("顔検出が完了しました。");
           setIsMasked(true); // マスクが完了した状態に設定
         } else {
-          setErrorMessage("顔が認識できませんでした"); // エラーメッセージを設定
+          setErrorMessage("顔が検知できませんでした"); // エラーメッセージを設定
         }
       } else {
         const errorResponse = await response.json();
         if (errorResponse.code === 28) {
-          setErrorMessage("顔が認識できませんでした"); // エラーメッセージを設定
+          setErrorMessage("顔が検知できませんでした"); // エラーメッセージを設定
         } else {
           console.error("アップロードエラー:", errorResponse.error || response.statusText);
           setErrorMessage("画像の送信に失敗しました。"); // エラーメッセージを設定

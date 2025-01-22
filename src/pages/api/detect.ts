@@ -119,9 +119,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const out = fs.createWriteStream(outputFilePath);
       const stream = canvas.createPNGStream();
       stream.pipe(out);
-      out.on("finish", () => {
-        console.log("Masked image saved.");
+
+      // 画像の生成が完了するまで待つ
+      await new Promise<void>((resolve, reject) => {
+        out.on("finish", resolve);
+        out.on("error", reject);
       });
+
+      console.log("Masked image saved.");
 
       // クライアントにプレビュー用URLを返す
       return res.status(200).json({ message: "Image processed successfully", previewUrl: outputUrl });
